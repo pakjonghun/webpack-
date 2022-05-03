@@ -1,4 +1,4 @@
-import rainbow from "./rainbow.jpg";
+import rainbow from "./rainbow.jpg";
 
 function addImg() {
   const img = document.createElement("img");

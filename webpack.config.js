@@ -5,17 +5,19 @@ module.exports = {
   output: {
     filename: "bundle.js",
     path: path.join(__dirname, "dist"),
+    publicPath: "/Users/jeonghunbag/project/basicLec/web-pack/dist/",
   },
   mode: "none",
   module: {
     rules: [
       {
-        test: /\.(abc)/,
-        type: "asset/resource",
-      },
-      {
         test: /\.(png|jpg)/,
-        type: "asset/resource",
+        type: "asset",
+        parser: {
+          dataUrlCondition: {
+            maxSize: 3 * 1024,
+          },
+        },
       },
     ],
   },
