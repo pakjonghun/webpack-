@@ -169,6 +169,7 @@ plugins: [new TerserPlugin()],
 ### MiniCssExtractPlugin
 
 - [doc](https://webpack.js.org/plugins/mini-css-extract-plugin/#root)
+- 이플러그 인을 사용하면 css 파일을 캐슁 할 수 있어서 스타일이 변하지 않는한 다시 다운받지 않아서 화면이 깜박이는 문제를 해결 할 수 있다
 - css 파일을 별도로 분리 할 수 있다(이거 왜 하냐면 다이나믹 번들링 하려고 하는거다.)
 - 파일이름을 설정 할 수도 있으며, 로더에 별도로 추가를 또 해줘야 한다.
 - 또 이 파일을 별도로 html 에 포함해줘야 한다.
@@ -187,6 +188,19 @@ const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 new MiniCssExtractPlugin({
   filename: "abc.css",
 }),
+```
+
+## webpack.provide
+
+- 굳이 임포트 하지 않아도 글로벌하게 라이브러리를 사용하게 하는 내장플러그인
+- webpack.providePlugin 에서 꺼내 쓰면된다.
+
+```
+// d 라는 이름은 date-fns 를 default 로 임포트 한 객체가 된다.
+new webpack.ProvidePlugin({
+  d: "date-fns",
+}),
+
 ```
 
 ## broswer caching
@@ -222,6 +236,50 @@ new HtmlWebpackPlugin({
   },
 }),
 
+```
+
+## purgecss-webpack-plugin
+
+- [doc](https://www.npmjs.com/package/purgecss-webpack-plugin)
+- 사용하지 않는 css 없애는 플러그인
+- glob 폴더 안에 사용하는 파일 필터링 하는 라이브러리 인데 같이 사용한다고 한다.
+
+```
+const PurgeCSSPlugin = require("purgecss-webpack-plugin");
+const glob = require("glob");
+
+const PATHS = {
+  src: path.join(__dirname, "src"),
+};
+new PurgeCSSPlugin({
+  //nodir 은 glob 사용방법임..
+    paths: glob.sync(`${PATHS.src}/**/*`, { nodir: true }),
+  //배열에 포함된 것은 그냥 살려준다.(다이나믹하게 콜백으로도 전달 가능)
+    safelist:["remain-class"]
+  }),
+```
+
+## copy-webpack-plugin
+
+- html 에 img 태그에 경로가 "./img/a.png" 로 되 있다.
+- 빌드 해봤자 html 에 들어있는거라 경로는 계속 안바뀐다.
+- 그래서 폴더 구조를 build 된 곳에 똑같이 만들어 줄 필요가 있을때 사용하는 플러그 인이다.
+
+```
+new CopyPlugin({
+  patterns: [
+    {
+      //원래 경로에 복사할 녀석을들 선택한다.
+      from: path.join(__dirname, "src", "assets/*.png"),
+
+      //어디다가 복사할지 알려준다.
+      to: path.join(__dirname, "dist"),
+
+      //중간에 빼고 싶은 기준 을 알려준다 src 는 없어도 됨.
+      context: "src",
+    },
+  ],
+}),
 ```
 
 ## clean-webpack-plugin
@@ -372,16 +430,72 @@ new HtmlWebpackPlugin({
 
 ## optimization 라이브러리 사용시 최적화
 
+- webpack-bundle-analyzer : 각 모듈 라이브러리 크기를 gui 로 알려주는 plugin
 - 라이브러리를 그냥 사용하고 아무 설정 안하면 모든 번들링 파일에 라이브러리가 포함된다. 비효율적
 - 아래 설정 하면 라이브러리는 별도 번들링 되어 캐슁되어 재활용 된다. 개 효율
 - 아래 설정을 하면 html 파일 에 꼭 필요한 곳에만 script(라이브러리 연결)이 생성된다.
 - 아래 옵션은 30kb 초과시에만 공통 종속성을 추출한다. 하지만 minSize 로 변경 할 수도 있다.
+- [doc](https://webpack.js.org/plugins/split-chunks-plugin/)
 
 ```
+const BundleAnalyzerPlugin =
+require("webpack-bundle-analyzer").BundleAnalyzerPlugin;
+
+plugins:[
+  new BundleAnalyzerPlugin(),
+]
+
+
+//최적화 방법 webpack5 버전부터
   optimization: {
     splitChunks: {
       chunks: "all",
       minSize:1024*3   //3kb 너머갈때만 공통 의존성으로 추출한다.
     },
   },
+```
+
+## dynamic import
+
+- 필요할때만 정크를 가져오게 하는 방법이다
+- 처음부터 임포트 해서 글로벌하게 다 갖고 오지 않고
+- 이벤트가 일어났을때 임포트를 비동기로 처리 해 준다.
+
+```
+//웹팩에서 처리할 정크 이름은 modal 이라는 뜻이다
+import(/* webpackChunkName: "modal" */ "./components/modal").then(
+    (module) => {
+      const showModal = module.default;
+      showModal();
+      $("#myModal").css("display", "block");
+    }
+  );
+```
+
+## tree shaking
+
+- js 파일에서 나무흔들기 안쓰는 것 없애주기!!(함수 라이브러리 등등 모두 포함)
+- 개발모드에서는 의미없음 프로덕션에서 해줘야 유의미함.
+- 방법은 그냥 프로덕션 모드로 실행하면 알아서 된다. ㅋㅋ
+
+## mode 별 파일 분할
+
+- webpack.config.common.js
+  - entry output provide optimization
+- webpack.config.dev.js
+  - devserver devenv analyzer
+- webpack.config.prod.js
+  - copy mini purge
+
+## webpack-merge
+
+- 파일을 종류별로 분할 후 merge 는 webpack-merge 를 이용한다.
+- 그리고 종류별 스크립트 만들어 주면 세팅끝(데브는 알아서 빌드 하면서 서버까지 킨다)
+
+```
+"dev": "webpack --config webpack.config.dev.js",
+
+//serve 안해도 dev 실행 하면 알아서 서버 켜진다.
+"serve": "webpack serve --config webpack.config.dev.js --open",
+"prod": "webpack --config webpack.config.prod.js"
 ```
